@@ -4,9 +4,12 @@
 > 纯前端 PWA，打开即用，断网也能用。
 
 [![PWA](https://img.shields.io/badge/PWA-Ready-9b59b6)](https://web.dev/learn/pwa)
+[![PWA-Installable](https://img.shields.io/badge/PWA-Installable-9b59b6)](https://web.dev/learn/pwa)
 [![Host](https://img.shields.io/badge/Host-GitHub%20Pages-1f6feb)](https://pages.github.com/)
 [![UI](https://img.shields.io/badge/UI-中文-ff69b4)](.)
 [![Stack](https://img.shields.io/badge/Stack-No%20Backend-2ecc71)](.)
+
+🌐 **线上地址：https://yydshy.github.io/zaunar/**
 
 ---
 
