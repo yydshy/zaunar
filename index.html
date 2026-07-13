@@ -80,6 +80,25 @@
   .icon-btn:hover { transform: translateY(-2px) scale(1.04); }
   .icon-btn:active { transform: scale(0.96); }
   .icon-btn svg { width: 22px; height: 22px; }
+  .more-wrap { position: relative; }
+  .more-menu {
+    position: absolute; top: calc(100% + 10px); right: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: var(--shadow-md, 0 10px 30px rgba(0,0,0,0.18));
+    padding: 6px; min-width: 168px; z-index: 60;
+    display: none; flex-direction: column; gap: 2px;
+  }
+  .more-menu.open { display: flex; animation: pop .18s ease; }
+  .more-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: none; background: none; width: 100%;
+    border-radius: 11px; color: var(--text); font-size: 15px;
+    cursor: pointer; text-align: left; font-family: inherit;
+  }
+  .more-item svg { width: 20px; height: 20px; flex: none; color: var(--text-soft); }
+  .more-item:hover { background: var(--surface-hover); }
+  .more-item:active { transform: scale(0.98); }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
 
   /* Search */
   .search { position: relative; margin-bottom: 16px; }
@@ -289,6 +308,10 @@
     color: #c0392b; cursor: pointer; padding: 5px 12px; font-size: 14px; white-space: nowrap;
   }
   .cat-list .cat-del:disabled { color: var(--text-soft); cursor: default; opacity: 0.45; }
+  .cat-add { display: flex; gap: 10px; margin: 4px 0 16px; }
+  .cat-add input { flex: 1; height: 48px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); padding: 0 14px; font-size: 16px; color: var(--text); outline: none; }
+  .cat-add input:focus { border-color: var(--accent); }
+  .cat-add .btn { flex: none; height: 48px; padding: 0 18px; }
 
   /* Toast */
   .toast {
@@ -364,12 +387,6 @@
       <span>在哪儿</span>
     </div>
     <div class="spacer"></div>
-    <button class="icon-btn" id="btnExport" title="导出备份" aria-label="导出备份">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-    </button>
-    <button class="icon-btn" id="btnImport" title="导入备份" aria-label="导入备份">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
-    </button>
     <button class="icon-btn" id="btnCats" title="管理分类" aria-label="管理分类">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="11" y2="18"/></svg>
     </button>
@@ -380,6 +397,21 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-6.7-3"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 6.7 3"/><path d="M21 3v6h-6"/><path d="M3 21v-6h6"/></svg>
       <span class="sync-dot" id="syncDot"></span>
     </button>
+    <div class="more-wrap">
+      <button class="icon-btn" id="btnMore" title="更多" aria-label="更多" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+      </button>
+      <div class="more-menu" id="moreMenu" role="menu" aria-label="更多操作">
+        <button class="more-item" id="btnExport" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+          导出备份
+        </button>
+        <button class="more-item" id="btnImport" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
+          导入备份
+        </button>
+      </div>
+    </div>
   </header>
 
   <div class="search">
@@ -461,8 +493,13 @@
 <div class="overlay" id="overlayCats">
   <div class="sheet" role="dialog" aria-modal="true">
     <h2>管理分类</h2>
+    <p class="hint-text">默认分类不可删；自定义分类可删，有记录会自动移到「其他」。</p>
     <ul class="cat-list" id="catList"></ul>
-    <button class="btn btn-ghost" id="btnCatsClose" style="width:100%">关闭</button>
+    <div class="cat-add">
+      <input type="text" id="catNewInput" placeholder="输入新分类名，如：阳台" autocomplete="off" />
+      <button class="btn btn-primary" id="btnCatAdd" type="button">添加</button>
+    </div>
+    <button class="btn btn-ghost" id="btnCatsClose" style="width:100%;margin-top:14px">关闭</button>
   </div>
 </div>
 
@@ -779,18 +816,18 @@
   // ── Categories sheet ───────────────────────────────────────────────────────
   function openCatsSheet() {
     var usedMap = {};
-    state.items.forEach(function (it) { usedMap[it.category] = true; });
+    state.items.forEach(function (it) { usedMap[it.category] = (usedMap[it.category] || 0) + 1; });
     var el = document.getElementById("catList");
     el.innerHTML = state.cats.map(function (c) {
       var isDefault = DEFAULT_CATS.indexOf(c) !== -1;
-      var inUse     = !!usedMap[c];
-      var label = isDefault ? "默认" : (inUse ? "使用中" : "删除");
-      var disabled  = isDefault || inUse;
+      var count = usedMap[c] || 0;
+      var label = isDefault ? "默认" : (count ? "删除 · " + count : "删除");
       return '<li>' +
         '<span class="cat-name">' + esc(c) + '</span>' +
-        (isDefault ? '<span class="cat-tag">默认</span>' : '') +
-        (inUse && !isDefault ? '<span class="cat-tag">使用中</span>' : '') +
-        '<button class="cat-del" data-del="' + esc(c) + '"' + (disabled ? " disabled" : "") + '>' + label + '</button>' +
+        (isDefault
+          ? '<span class="cat-tag">默认</span>'
+          : (count ? '<span class="cat-tag">' + count + ' 条</span>' : '')) +
+        '<button class="cat-del" data-del="' + esc(c) + '"' + (isDefault ? " disabled" : "") + '>' + label + '</button>' +
       '</li>';
     }).join("");
     document.getElementById("overlayCats").classList.add("open");
@@ -890,9 +927,48 @@
       var btn = e.target.closest("[data-del]");
       if (!btn || btn.disabled) return;
       var cat = btn.getAttribute("data-del");
-      if (!confirm("确定删除分类「" + cat + "」吗？")) return;
+      if (DEFAULT_CATS.indexOf(cat) !== -1) return;
+      var n = state.items.filter(function (it) { return it.category === cat; }).length;
+      var msg = n
+        ? "分类「" + cat + "」下有 " + n + " 条记录，删除后会移到「其他」分类，确定吗？"
+        : "确定删除分类「" + cat + "」吗？";
+      if (!confirm(msg)) return;
+      state.items.forEach(function (it) { if (it.category === cat) { it.category = "其他"; it.updatedAt = Date.now(); } });
       state.cats = state.cats.filter(function (c) { return c !== cat; });
-      saveItems(); openCatsSheet(); renderChips();
+      saveItems(); scheduleSync(); openCatsSheet(); renderChips(); render();
+    });
+    // Add category from management sheet
+    function addCategory() {
+      var inp = document.getElementById("catNewInput");
+      var name = inp.value.trim();
+      if (!name) { showToast("请输入分类名"); return; }
+      if (state.cats.indexOf(name) !== -1) { showToast("已存在该分类"); inp.value = ""; return; }
+      state.cats.push(name);
+      inp.value = "";
+      saveItems(); scheduleSync(); openCatsSheet(); renderChips();
+    }
+    document.getElementById("btnCatAdd").addEventListener("click", addCategory);
+    document.getElementById("catNewInput").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addCategory(); } });
+
+    // More menu (export / import)
+    var btnMore = document.getElementById("btnMore");
+    var moreMenu = document.getElementById("moreMenu");
+    btnMore.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = moreMenu.classList.toggle("open");
+      btnMore.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    document.addEventListener("click", function (e) {
+      if (moreMenu.classList.contains("open") && !moreMenu.contains(e.target) && e.target !== btnMore) {
+        moreMenu.classList.remove("open");
+        btnMore.setAttribute("aria-expanded", "false");
+      }
+    });
+    moreMenu.addEventListener("click", function (e) {
+      if (e.target.closest(".more-item")) {
+        moreMenu.classList.remove("open");
+        btnMore.setAttribute("aria-expanded", "false");
+      }
     });
 
     // Lightbox
