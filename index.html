@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" id="themeColorMeta" content="#f7f1e8" />
+  <title>在哪儿 · 东西放哪了随手记</title>
+
+  <!-- PWA: 添加到主屏幕所需元数据 -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="application-name" content="在哪儿" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="在哪儿" />
+  <meta name="msapplication-TileImage" content="icons/icon-192.png" />
+  <meta name="msapplication-TileColor" content="#f7f1e8" />
+<style>
+  :root {
+    --bg: #f7f1e8;
+    --surface: #fffdf9;
+    --surface-2: #f1e9dc;
+    --text: #4a4036;
+    --text-soft: #6e6256;
+    --accent: #c97b5a;
+    --accent-2: #7a8b6f;
+    --border: rgba(74, 64, 54, 0.10);
+    --shadow: 0 10px 30px rgba(120, 100, 80, 0.14);
+    --shadow-sm: 0 4px 14px rgba(120, 100, 80, 0.10);
+    --radius: 22px;
+    --radius-sm: 14px;
+  }
+  [data-theme="dark"] {
+    --bg: #221e19;
+    --surface: #2e2922;
+    --surface-2: #38322a;
+    --text: #f3ebdd;
+    --text-soft: #c4b8a8;
+    --accent: #d98c6a;
+    --accent-2: #93a585;
+    --border: rgba(255, 255, 255, 0.08);
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.28);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 18px;
+    line-height: 1.6;
+    min-height: 100vh;
+    transition: background 0.4s ease, color 0.4s ease;
+    padding-bottom: 120px;
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; padding: 22px 18px; }
+
+  /* Header */
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
+  .logo .pin {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; color: #fff; flex: none;
+    box-shadow: var(--shadow-sm);
+  }
+  .spacer { flex: 1; }
+  .icon-btn {
+    width: 44px; height: 44px; border-radius: 14px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); display: grid; place-items: center; cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), box-shadow 0.25s, background 0.25s;
+    box-shadow: var(--shadow-sm);
+  }
+  .icon-btn:hover { transform: translateY(-2px) scale(1.04); }
+  .icon-btn:active { transform: scale(0.96); }
+  .icon-btn svg { width: 22px; height: 22px; }
+
+  /* Search */
+  .search { position: relative; margin-bottom: 16px; }
+  .search input {
+    width: 100%; height: 56px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    padding: 0 16px 0 50px; font-size: 19px; color: var(--text);
+    box-shadow: var(--shadow-sm); outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(201,123,90,0.15); }
+  .search .s-icon {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    color: var(--text-soft); width: 22px; height: 22px; pointer-events: none;
+  }
+
+  /* Category chips */
+  .chips {
+    display: flex; gap: 9px; overflow-x: auto; padding: 4px 2px 12px;
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; padding: 9px 16px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-soft); font-size: 16px; cursor: pointer; white-space: nowrap;
+    transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
+  }
+  .chip:hover { transform: translateY(-1px); }
+  .chip.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff; border-color: transparent; box-shadow: var(--shadow-sm);
+  }
+
+  /* Stats + cross-hint */
+  .stats { color: var(--text-soft); font-size: 16px; margin: 4px 2px 6px; }
+  .cross-hint {
+    font-size: 15px; color: var(--accent); margin: 0 2px 12px;
+    cursor: pointer; display: none;
+  }
+  .cross-hint:hover { text-decoration: underline; }
+
+  /* Cards */
+  .grid { display: grid; gap: 14px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm);
+    display: flex; gap: 14px; cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s;
+    animation: rise 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+  .card .thumb {
+    width: 76px; height: 76px; border-radius: var(--radius-sm); flex: none;
+    background: var(--surface-2); display: grid; place-items: center;
+    color: var(--text-soft); overflow: hidden; cursor: pointer;
+  }
+  .card .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card .thumb svg { width: 30px; height: 30px; }
+  .card .body { flex: 1; min-width: 0; }
+  .card .name { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .card .loc { color: var(--text-soft); margin-top: 2px; word-break: break-word; }
+  .card .note { color: var(--text-soft); font-size: 16px; margin-top: 4px; font-style: italic; }
+  .card .meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .tag { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); }
+  .timeago { font-size: 13px; color: var(--text-soft); }
+  .star {
+    margin-left: auto; background: none; border: none; cursor: pointer;
+    color: var(--text-soft); padding: 4px; line-height: 0;
+  }
+  .star.on { color: #e0a93b; }
+  .star svg { width: 24px; height: 24px; }
+  .share-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-soft); padding: 4px; line-height: 0; transition: color 0.2s;
+  }
+  .share-btn:hover { color: var(--accent); }
+  .share-btn svg { width: 20px; height: 20px; }
+
+  .empty {
+    text-align: center; color: var(--text-soft); padding: 60px 20px;
+    background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius);
+  }
+  .empty svg { width: 56px; height: 56px; opacity: 0.5; margin-bottom: 12px; }
+
+  /* FAB */
+  .fab {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: 26px; height: 60px; padding: 0 28px; border-radius: 999px; border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff; font-size: 19px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow);
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 40;
+  }
+  .fab:hover { transform: translateX(-50%) translateY(-3px) scale(1.03); }
+  .fab:active { transform: translateX(-50%) scale(0.97); }
+  .fab svg { width: 24px; height: 24px; }
+
+  /* Sheet / overlay */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(40,32,24,0.5);
+    backdrop-filter: blur(4px); display: none; align-items: flex-end; justify-content: center;
+    z-index: 60; padding: 0;
+  }
+  .overlay.open { display: flex; animation: fade 0.25s ease; }
+  .sheet {
+    background: var(--bg); width: 100%; max-width: 720px; border-radius: 26px 26px 0 0;
+    padding: 22px 20px calc(28px + env(safe-area-inset-bottom));
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.25);
+    max-height: 92vh; overflow-y: auto;
+    animation: slideup 0.35s cubic-bezier(0.16,1,0.3,1);
+  }
+  .sheet h2 { margin: 0 0 18px; font-size: 23px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 16px; color: var(--text-soft); margin-bottom: 7px; font-weight: 600; }
+  .field input[type=text], .field textarea, .field select {
+    width: 100%; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); border-radius: var(--radius-sm); padding: 13px 14px;
+    font-size: 18px; font-family: inherit; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 4px rgba(201,123,90,0.15);
+  }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .name-row { display: flex; gap: 10px; }
+  .name-row input { flex: 1; }
+  .mic {
+    flex: none; width: 52px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); color: var(--accent); cursor: pointer; display: grid; place-items: center;
+    transition: all 0.25s;
+  }
+  .mic svg { width: 24px; height: 24px; }
+  .mic.listening { background: var(--accent); color: #fff; animation: pulse 1.2s infinite; }
+  .custom-cat { margin-top: 10px; display: none; }
+  .custom-cat.show { display: block; }
+  .photo-box { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .photo-prev {
+    width: 88px; height: 88px; border-radius: var(--radius-sm); background: var(--surface-2);
+    object-fit: cover; display: none; border: 1px solid var(--border); cursor: pointer;
+  }
+  .photo-prev.show { display: block; }
+  .photo-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px;
+    border-radius: var(--radius-sm); border: 1px dashed var(--accent); background: transparent;
+    color: var(--accent); font-size: 16px; cursor: pointer; font-weight: 600;
+  }
+  .photo-btn svg { width: 20px; height: 20px; }
+  .pin-row { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; }
+  .pin-row input { width: 22px; height: 22px; accent-color: var(--accent); }
+  .actions { display: flex; gap: 12px; }
+  .btn {
+    flex: 1; height: 54px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+    font-size: 18px; font-weight: 700; transition: transform 0.2s, opacity 0.2s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
+  .danger-text {
+    display: block; text-align: center; margin: 22px auto 0; color: var(--text-soft);
+    font-size: 15px; background: none; border: none; cursor: pointer; text-decoration: underline;
+  }
+  .hidden-file { display: none; }
+
+  /* PWA: 添加到主屏幕引导条 */
+  .install-bar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; margin: 0 0 10px;
+    background: linear-gradient(135deg, var(--accent), #b9694a);
+    color: #fff; border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: 0 6px 20px rgba(160, 110, 80, 0.30);
+    animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .install-bar .ib-icon {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.22); display: flex; align-items: center; justify-content: center;
+  }
+  .install-bar .ib-icon svg { width: 22px; height: 22px; }
+  .install-bar .ib-text { flex: 1; line-height: 1.35; }
+  .install-bar .ib-text b { font-size: 15px; }
+  .install-bar .ib-text span { display: block; font-size: 12px; opacity: 0.92; }
+  .install-bar .ib-add {
+    flex-shrink: 0; border: none; border-radius: 999px; cursor: pointer;
+    padding: 9px 16px; font-size: 14px; font-weight: 600; color: var(--accent);
+    background: #fff; box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+  }
+  .install-bar .ib-close {
+    flex-shrink: 0; width: 30px; height: 30px; border: none; cursor: pointer;
+    background: rgba(255,255,255,0.18); color: #fff; border-radius: 50%;
+    font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  }
+  .install-bar.hide { display: none; }
+
+  /* Categories management */
+  .cat-list { list-style: none; padding: 0; margin: 0 0 18px; }
+  .cat-list li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .cat-list li:last-child { border-bottom: none; }
+  .cat-list .cat-name { flex: 1; font-size: 18px; }
+  .cat-list .cat-tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); }
+  .cat-list .cat-del {
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    color: #c0392b; cursor: pointer; padding: 5px 12px; font-size: 14px; white-space: nowrap;
+  }
+  .cat-list .cat-del:disabled { color: var(--text-soft); cursor: default; opacity: 0.45; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%) translateY(14px);
+    background: var(--text); color: var(--bg); padding: 12px 24px; border-radius: 999px;
+    font-size: 16px; font-weight: 600; opacity: 0; pointer-events: none;
+    transition: opacity 0.28s, transform 0.28s; z-index: 200; white-space: nowrap;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Lightbox */
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+    display: none; align-items: center; justify-content: center;
+    z-index: 120; cursor: pointer;
+  }
+  .lightbox.open { display: flex; animation: fade 0.2s ease; }
+  .lightbox img {
+    max-width: 94vw; max-height: 88vh; border-radius: 14px;
+    object-fit: contain; box-shadow: 0 20px 60px rgba(0,0,0,0.5); cursor: default;
+  }
+  .lightbox-close {
+    position: absolute; top: 18px; right: 18px;
+    width: 44px; height: 44px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.15); color: #fff;
+    display: grid; place-items: center; cursor: pointer; font-size: 22px;
+  }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- PWA: 添加到主屏幕引导条（仅未安装且支持时显示） -->
+  <div class="install-bar hide" id="installBar">
+    <div class="ib-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+    </div>
+    <div class="ib-text">
+      <b>添加到主屏幕</b>
+      <span id="installHint">放桌面，下次像 App 一样点开</span>
+    </div>
+    <button class="ib-add" id="installAdd">添加</button>
+    <button class="ib-close" id="installClose" aria-label="关闭">×</button>
+  </div>
+  <header>
+    <div class="logo">
+      <span class="pin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+      </span>
+      <span>在哪儿</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="btnExport" title="导出备份" aria-label="导出备份">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+    </button>
+    <button class="icon-btn" id="btnImport" title="导入备份" aria-label="导入备份">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
+    </button>
+    <button class="icon-btn" id="btnCats" title="管理分类" aria-label="管理分类">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="11" y2="18"/></svg>
+    </button>
+    <button class="icon-btn" id="btnTheme" title="切换日间/夜间" aria-label="切换主题">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </header>
+
+  <div class="search">
+    <span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+    <input type="text" id="searchInput" placeholder="搜一下：遥控器、药、钥匙…" autocomplete="off" />
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div class="stats" id="stats"></div>
+  <div class="cross-hint" id="crossHint"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<button class="fab" id="fabAdd">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  记一样东西
+</button>
+
+<!-- Add / Edit sheet -->
+<div class="overlay" id="overlay">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <h2 id="sheetTitle">记一样东西</h2>
+    <form id="itemForm">
+      <div class="field">
+        <label for="fName">物品叫什么</label>
+        <div class="name-row">
+          <input type="text" id="fName" placeholder="比如：电视遥控器" required />
+          <button type="button" class="mic" id="micBtnName" title="语音输入名称">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fLoc">放在哪儿</label>
+        <div class="name-row">
+          <input type="text" id="fLoc" placeholder="比如：沙发垫下面" />
+          <button type="button" class="mic" id="micBtnLoc" title="语音输入位置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fCat">属于哪一类</label>
+        <select id="fCat"></select>
+        <div class="custom-cat" id="customCatWrap">
+          <input type="text" id="fCatCustom" placeholder="输入新分类名，如：阳台" />
+        </div>
+      </div>
+      <div class="field">
+        <label>拍张照片（可选，最直观）</label>
+        <div class="photo-box">
+          <img class="photo-prev" id="photoPrev" alt="预览" />
+          <button type="button" class="photo-btn" id="photoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            拍照 / 选图
+          </button>
+          <button type="button" class="photo-btn" id="photoClear" style="display:none;border-style:solid;color:var(--text-soft);border-color:var(--border)">去掉</button>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden-file" />
+      </div>
+      <div class="field">
+        <label for="fNote">再备注一句（可选）</label>
+        <textarea id="fNote" placeholder="比如：充电电池快没电了"></textarea>
+      </div>
+      <div class="pin-row">
+        <input type="checkbox" id="fPin" />
+        <label for="fPin" style="margin:0;color:var(--text);font-weight:600">置顶到最前面（常用的东西）</label>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" id="btnCancel">取消</button>
+        <button type="submit" class="btn btn-primary" id="btnSave">保存</button>
+      </div>
+      <button type="button" class="danger-text" id="btnDelete" style="display:none">删除这条记录</button>
+    </form>
+  </div>
+</div>
+
+<!-- Categories management sheet -->
+<div class="overlay" id="overlayCats">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <h2>管理分类</h2>
+    <ul class="cat-list" id="catList"></ul>
+    <button class="btn btn-ghost" id="btnCatsClose" style="width:100%">关闭</button>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">✕</button>
+  <img id="lightboxImg" src="" alt="放大查看" />
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<input type="file" id="importInput" accept="application/json" class="hidden-file" />
+
+<script>
+(function () {
+  "use strict";
+
+  var STORE_KEY    = "zaunar_items_v1";
+  var CAT_KEY      = "zaunar_cats_v1";
+  var THEME_KEY    = "zaunar_theme_v1";
+  var IDB_NAME     = "zaunar_db";
+  var IDB_STORE    = "photos";
+  var IDB_VER      = 1;
+  var DEFAULT_CATS = ["厨房", "卧室", "客厅", "卫生间", "证件", "药品", "钥匙", "其他"];
+
+  var state = {
+    items: [], cats: DEFAULT_CATS.slice(),
+    filter: "全部", query: "",
+    editingId: null, photoData: null,
+    photos: {}  // id -> base64 (in-memory cache from IndexedDB)
+  };
+
+  // ── IndexedDB helpers ──────────────────────────────────────────────────────
+  var _db = null;
+  function getDB() {
+    return new Promise(function (resolve, reject) {
+      if (_db) return resolve(_db);
+      var req = indexedDB.open(IDB_NAME, IDB_VER);
+      req.onupgradeneeded = function (e) { e.target.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = function (e) { _db = e.target.result; resolve(_db); };
+      req.onerror   = function () { reject(req.error); };
+    });
+  }
+  function idbPut(id, data) {
+    return getDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).put(data, id);
+        tx.oncomplete = res;
+        tx.onerror    = function () { rej(tx.error); };
+      });
+    });
+  }
+  function idbDel(id) {
+    return getDB().then(function (db) {
+      return new Promise(function (res) {
+        var tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).delete(id);
+        tx.oncomplete = res; tx.onerror = res;
+      });
+    });
+  }
+  function idbClearAll() {
+    return getDB().then(function (db) {
+      return new Promise(function (res) {
+        var tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).clear();
+        tx.oncomplete = res; tx.onerror = res;
+      });
+    });
+  }
+  function idbGetAll() {
+    return getDB().then(function (db) {
+      return new Promise(function (resolve) {
+        var map = {};
+        var req = db.transaction(IDB_STORE, "readonly").objectStore(IDB_STORE).openCursor();
+        req.onsuccess = function (e) {
+          var c = e.target.result;
+          if (c) { map[c.key] = c.value; c.continue(); } else resolve(map);
+        };
+        req.onerror = function () { resolve(map); };
+      });
+    }).catch(function () { return {}; });
+  }
+
+  // ── Storage ────────────────────────────────────────────────────────────────
+  function load() {
+    try {
+      var rawItems = JSON.parse(localStorage.getItem(STORE_KEY)) || [];
+      // strip any legacy photo fields before storing in state
+      state.items = rawItems.map(function (it) {
+        var o = Object.assign({}, it); delete o.photo; return o;
+      });
+      state.cats = JSON.parse(localStorage.getItem(CAT_KEY)) || DEFAULT_CATS.slice();
+    } catch (e) {
+      state.items = []; state.cats = DEFAULT_CATS.slice();
+    }
+  }
+  function saveItems() {
+    try {
+      // never persist photos in localStorage
+      localStorage.setItem(STORE_KEY, JSON.stringify(state.items));
+      localStorage.setItem(CAT_KEY,   JSON.stringify(state.cats));
+    } catch (e) {
+      showToast("⚠️ 存储空间不足，建议导出备份后删除部分记录");
+    }
+  }
+
+  // ── Migration: move old base64 photos from localStorage items → IndexedDB ──
+  function migratePhotos(rawItems) {
+    return idbGetAll().then(function (existing) {
+      state.photos = existing;
+      var promises = [];
+      rawItems.forEach(function (it) {
+        if (it.photo && it.photo.startsWith("data:") && !state.photos[it.id]) {
+          state.photos[it.id] = it.photo;
+          promises.push(idbPut(it.id, it.photo));
+        }
+      });
+      if (promises.length) {
+        return Promise.all(promises).then(function () {
+          saveItems(); // re-save stripped items
+        });
+      }
+    }).catch(function () { state.photos = {}; });
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function timeAgo(ts) {
+    if (!ts) return "";
+    var d = (Date.now() - ts) / 1000;
+    if (d < 60)    return "刚刚";
+    if (d < 3600)  return Math.floor(d / 60) + "分钟前";
+    if (d < 86400) return Math.floor(d / 3600) + "小时前";
+    var days = Math.floor(d / 86400);
+    if (days < 30)  return days + "天前";
+    if (days < 365) return Math.floor(days / 30) + "个月前";
+    return Math.floor(days / 365) + "年前";
+  }
+  function compressImage(file, maxW, quality) {
+    maxW = maxW || 1000; quality = quality || 0.6;
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url); // revoke before canvas work
+        var scale = Math.min(1, maxW / img.width);
+        var w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        var c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        try { resolve(c.toDataURL("image/jpeg", quality)); }
+        catch (err) { reject(err); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("图片读取失败")); };
+      img.src = url;
+    });
+  }
+  function showToast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._tid);
+    t._tid = setTimeout(function () { t.classList.remove("show"); }, 2400);
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.style.cssText = "position:fixed;opacity:0;top:0;left:0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  function applyTheme(t) {
+    if (t === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    else document.documentElement.removeAttribute("data-theme");
+    var meta = document.querySelector("meta[name=theme-color]");
+    if (meta) meta.setAttribute("content", t === "dark" ? "#221e19" : "#f7f1e8");
+  }
+  function initTheme() {
+    var saved = localStorage.getItem(THEME_KEY);
+    // 默认亮色：仅当用户手动选过暗色时才用暗色，不跟随系统暗色偏好
+    applyTheme(saved || "light");
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function visibleItems() {
+    var q = state.query.trim().toLowerCase();
+    var list = state.items.filter(function (it) {
+      if (state.filter !== "全部" && it.category !== state.filter) return false;
+      if (q) {
+        var hay = (it.name + " " + it.location + " " + it.note + " " + it.category).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+    list.sort(function (a, b) {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
+    return list;
+  }
+  function crossCategoryCount() {
+    if (state.filter === "全部") return 0;
+    var q = state.query.trim().toLowerCase();
+    if (!q) return 0;
+    return state.items.filter(function (it) {
+      if (it.category === state.filter) return false;
+      var hay = (it.name + " " + it.location + " " + it.note + " " + it.category).toLowerCase();
+      return hay.indexOf(q) !== -1;
+    }).length;
+  }
+
+  function renderChips() {
+    var el  = document.getElementById("chips");
+    var all = ["全部"].concat(state.cats);
+    el.innerHTML = all.map(function (c) {
+      return '<button class="chip' + (state.filter === c ? " active" : "") + '" data-cat="' + esc(c) + '">' + esc(c) + "</button>";
+    }).join("");
+  }
+
+  function cardHTML(it) {
+    var photo = state.photos[it.id];
+    var thumb = photo
+      ? '<div class="thumb" data-lightbox="' + esc(it.id) + '"><img src="' + photo + '" alt="" /></div>'
+      : '<div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg></div>';
+    var note = it.note ? '<div class="note">' + esc(it.note) + "</div>" : "";
+    var ta   = timeAgo(it.updatedAt);
+    return '<div class="card" data-id="' + esc(it.id) + '">' +
+      thumb +
+      '<div class="body">' +
+        '<div class="name">' + esc(it.name) +
+          '<button class="star ' + (it.pinned ? "on" : "") + '" data-star="' + esc(it.id) + '" aria-label="置顶">' +
+            '<svg viewBox="0 0 24 24" fill="' + (it.pinned ? "currentColor" : "none") + '" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z"/></svg>' +
+          '</button>' +
+        '</div>' +
+        (it.location ? '<div class="loc">📍 ' + esc(it.location) + "</div>" : "") +
+        note +
+        '<div class="meta">' +
+          '<span class="tag">' + esc(it.category || "其他") + '</span>' +
+          (ta ? '<span class="timeago">' + ta + '</span>' : '') +
+          '<button class="share-btn" data-share="' + esc(it.id) + '" aria-label="分享" title="复制到剪贴板">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function render() {
+    var grid  = document.getElementById("grid");
+    var hint  = document.getElementById("crossHint");
+    var list  = visibleItems();
+    var cc    = crossCategoryCount();
+
+    document.getElementById("stats").textContent = state.items.length
+      ? ("共记录了 " + state.items.length + " 样东西" + (state.filter !== "全部" || state.query ? "，当前显示 " + list.length + " 条" : ""))
+      : "";
+
+    if (cc > 0) {
+      hint.textContent = list.length
+        ? "另有其他分类下 " + cc + " 条也匹配「" + state.query + "」，点此查看全部"
+        : "当前分类没找到，其他分类里有 " + cc + " 条匹配，点此查看全部";
+      hint.style.display = "block";
+    } else {
+      hint.style.display = "none";
+    }
+
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>' +
+        "<div>" + (state.items.length ? "没有匹配的，换个词试试？" : "还没有记录哦，点下面按钮记第一样东西吧") + "</div></div>";
+      return;
+    }
+    grid.innerHTML = list.map(cardHTML).join("");
+  }
+
+  // ── Categories sheet ───────────────────────────────────────────────────────
+  function openCatsSheet() {
+    var usedMap = {};
+    state.items.forEach(function (it) { usedMap[it.category] = true; });
+    var el = document.getElementById("catList");
+    el.innerHTML = state.cats.map(function (c) {
+      var isDefault = DEFAULT_CATS.indexOf(c) !== -1;
+      var inUse     = !!usedMap[c];
+      var label = isDefault ? "默认" : (inUse ? "使用中" : "删除");
+      var disabled  = isDefault || inUse;
+      return '<li>' +
+        '<span class="cat-name">' + esc(c) + '</span>' +
+        (isDefault ? '<span class="cat-tag">默认</span>' : '') +
+        (inUse && !isDefault ? '<span class="cat-tag">使用中</span>' : '') +
+        '<button class="cat-del" data-del="' + esc(c) + '"' + (disabled ? " disabled" : "") + '>' + label + '</button>' +
+      '</li>';
+    }).join("");
+    document.getElementById("overlayCats").classList.add("open");
+  }
+  function closeCatsSheet() { document.getElementById("overlayCats").classList.remove("open"); }
+
+  // ── Edit sheet ─────────────────────────────────────────────────────────────
+  function fillCatSelect() {
+    var sel  = document.getElementById("fCat");
+    sel.innerHTML = state.cats.map(function (c) {
+      return '<option value="' + esc(c) + '">' + esc(c) + "</option>";
+    }).join("") + '<option value="__custom__">＋ 新增分类…</option>';
+  }
+  function openSheet(item) {
+    state.editingId = item ? item.id : null;
+    state.photoData = item ? (state.photos[item.id] || null) : null;
+    document.getElementById("sheetTitle").textContent = item ? "编辑记录" : "记一样东西";
+    document.getElementById("fName").value  = item ? item.name : "";
+    document.getElementById("fLoc").value   = item ? (item.location || "") : "";
+    document.getElementById("fNote").value  = item ? (item.note || "") : "";
+    document.getElementById("fPin").checked = item ? !!item.pinned : false;
+    fillCatSelect();
+    if (item && item.category) {
+      if (state.cats.indexOf(item.category) === -1) { state.cats.push(item.category); fillCatSelect(); }
+      document.getElementById("fCat").value = item.category;
+    } else {
+      document.getElementById("fCat").value = "其他";
+    }
+    document.getElementById("customCatWrap").classList.remove("show");
+    document.getElementById("fCatCustom").value = "";
+    var prev = document.getElementById("photoPrev");
+    if (state.photoData) {
+      prev.src = state.photoData; prev.classList.add("show");
+      document.getElementById("photoClear").style.display = "";
+    } else {
+      prev.classList.remove("show"); prev.src = "";
+      document.getElementById("photoClear").style.display = "none";
+    }
+    document.getElementById("btnDelete").style.display = item ? "" : "none";
+    document.getElementById("overlay").classList.add("open");
+    setTimeout(function () { document.getElementById("fName").focus(); }, 250);
+  }
+  function closeSheet() { document.getElementById("overlay").classList.remove("open"); stopVoice(); }
+
+  // ── Voice ──────────────────────────────────────────────────────────────────
+  var recog = null, listening = false, listenTarget = null;
+  function voiceSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+  function startVoice(targetId) {
+    if (!voiceSupported()) { showToast("当前浏览器不支持语音输入"); return; }
+    if (listening) stopVoice();
+    listenTarget = targetId;
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recog = new SR();
+    recog.lang = "zh-CN"; recog.interimResults = false; recog.maxAlternatives = 1;
+    recog.onresult = function (e) {
+      var txt = e.results[0][0].transcript;
+      var inp = document.getElementById(targetId);
+      inp.value = (inp.value ? inp.value + " " : "") + txt;
+    };
+    recog.onerror = function () { stopVoice(); };
+    recog.onend   = function () { stopVoice(); };
+    try {
+      recog.start(); listening = true;
+      document.getElementById(targetId === "fName" ? "micBtnName" : "micBtnLoc").classList.add("listening");
+    } catch (e) { stopVoice(); }
+  }
+  function stopVoice() {
+    listening = false; listenTarget = null;
+    ["micBtnName", "micBtnLoc"].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.classList.remove("listening");
+    });
+    if (recog) { try { recog.stop(); } catch (e) {} recog = null; }
+  }
+
+  // ── Lightbox ───────────────────────────────────────────────────────────────
+  function openLightbox(src) {
+    document.getElementById("lightboxImg").src = src;
+    document.getElementById("lightbox").classList.add("open");
+  }
+  function closeLightbox() {
+    document.getElementById("lightbox").classList.remove("open");
+    document.getElementById("lightboxImg").src = "";
+  }
+
+  // ── Event binding ──────────────────────────────────────────────────────────
+  function bind() {
+    // FAB / sheet open-close
+    document.getElementById("fabAdd").addEventListener("click", function () { openSheet(null); });
+    document.getElementById("btnCancel").addEventListener("click", closeSheet);
+    document.getElementById("overlay").addEventListener("click", function (e) { if (e.target === this) closeSheet(); });
+
+    // Categories sheet
+    document.getElementById("btnCats").addEventListener("click", openCatsSheet);
+    document.getElementById("btnCatsClose").addEventListener("click", closeCatsSheet);
+    document.getElementById("overlayCats").addEventListener("click", function (e) { if (e.target === this) closeCatsSheet(); });
+    document.getElementById("catList").addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-del]");
+      if (!btn || btn.disabled) return;
+      var cat = btn.getAttribute("data-del");
+      if (!confirm("确定删除分类「" + cat + "」吗？")) return;
+      state.cats = state.cats.filter(function (c) { return c !== cat; });
+      saveItems(); openCatsSheet(); renderChips();
+    });
+
+    // Lightbox
+    document.getElementById("lightbox").addEventListener("click", function (e) { if (e.target === this) closeLightbox(); });
+    document.getElementById("lightboxClose").addEventListener("click", closeLightbox);
+    document.getElementById("photoPrev").addEventListener("click", function () {
+      if (state.photoData) openLightbox(state.photoData);
+    });
+
+    // Search
+    document.getElementById("searchInput").addEventListener("input", function (e) {
+      state.query = e.target.value; render();
+    });
+
+    // Cross-category hint
+    document.getElementById("crossHint").addEventListener("click", function () {
+      state.filter = "全部"; renderChips(); render();
+    });
+
+    // Chips
+    document.getElementById("chips").addEventListener("click", function (e) {
+      var b = e.target.closest(".chip"); if (!b) return;
+      state.filter = b.getAttribute("data-cat"); renderChips(); render();
+    });
+
+    // Grid: star / share / lightbox / edit
+    document.getElementById("grid").addEventListener("click", function (e) {
+      // star
+      var star = e.target.closest("[data-star]");
+      if (star) {
+        e.stopPropagation();
+        var sid = star.getAttribute("data-star");
+        var sit = state.items.find(function (x) { return x.id === sid; });
+        if (sit) { sit.pinned = !sit.pinned; sit.updatedAt = Date.now(); saveItems(); render(); }
+        return;
+      }
+      // share / copy
+      var shareBtn = e.target.closest("[data-share]");
+      if (shareBtn) {
+        e.stopPropagation();
+        var shid = shareBtn.getAttribute("data-share");
+        var shit = state.items.find(function (x) { return x.id === shid; });
+        if (shit) {
+          var txt = "【" + shit.name + "】\n" +
+            (shit.location ? "📍 放在：" + shit.location + "\n" : "") +
+            (shit.note     ? "📝 备注：" + shit.note + "\n"     : "") +
+            (shit.category ? "🏷 分类：" + shit.category        : "");
+          copyText(txt)
+            .then(function () { showToast("✅ 已复制到剪贴板"); })
+            .catch(function () { showToast("复制失败，请手动复制"); });
+        }
+        return;
+      }
+      // lightbox
+      var lb = e.target.closest("[data-lightbox]");
+      if (lb) {
+        e.stopPropagation();
+        var lbid = lb.getAttribute("data-lightbox");
+        if (state.photos[lbid]) openLightbox(state.photos[lbid]);
+        return;
+      }
+      // edit card
+      var card = e.target.closest(".card");
+      if (card) {
+        var item = state.items.find(function (x) { return x.id === card.getAttribute("data-id"); });
+        if (item) openSheet(item);
+      }
+    });
+
+    // Category select
+    document.getElementById("fCat").addEventListener("change", function (e) {
+      var wrap = document.getElementById("customCatWrap");
+      if (e.target.value === "__custom__") { wrap.classList.add("show"); document.getElementById("fCatCustom").focus(); }
+      else wrap.classList.remove("show");
+    });
+
+    // Photo
+    document.getElementById("photoBtn").addEventListener("click", function () { document.getElementById("photoInput").click(); });
+    document.getElementById("photoInput").addEventListener("change", function (e) {
+      var f = e.target.files && e.target.files[0]; if (!f) return;
+      compressImage(f).then(function (data) {
+        state.photoData = data;
+        var prev = document.getElementById("photoPrev");
+        prev.src = data; prev.classList.add("show");
+        document.getElementById("photoClear").style.display = "";
+      }).catch(function () { showToast("图片处理失败，请换一张试试"); });
+    });
+    document.getElementById("photoClear").addEventListener("click", function () {
+      state.photoData = null;
+      var prev = document.getElementById("photoPrev");
+      prev.classList.remove("show"); prev.src = "";
+      document.getElementById("photoInput").value = "";
+      this.style.display = "none";
+    });
+
+    // Voice buttons
+    document.getElementById("micBtnName").addEventListener("click", function () {
+      if (listening && listenTarget === "fName") stopVoice(); else startVoice("fName");
+    });
+    document.getElementById("micBtnLoc").addEventListener("click", function () {
+      if (listening && listenTarget === "fLoc") stopVoice(); else startVoice("fLoc");
+    });
+
+    // Form submit (save)
+    document.getElementById("itemForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = document.getElementById("fName").value.trim();
+      if (!name) { showToast("先写一下物品叫什么吧"); return; }
+      var catSel = document.getElementById("fCat").value;
+      var cat = catSel === "__custom__"
+        ? (document.getElementById("fCatCustom").value.trim() || "其他")
+        : catSel;
+      if (state.cats.indexOf(cat) === -1) state.cats.push(cat);
+
+      var now = Date.now();
+      if (state.editingId) {
+        var it = state.items.find(function (x) { return x.id === state.editingId; });
+        if (it) {
+          it.name     = name;
+          it.location = document.getElementById("fLoc").value.trim();
+          it.note     = document.getElementById("fNote").value.trim();
+          it.category = cat;
+          it.pinned   = document.getElementById("fPin").checked;
+          it.updatedAt= now;
+        }
+        // sync photo to IndexedDB
+        if (state.photoData) {
+          state.photos[state.editingId] = state.photoData;
+          idbPut(state.editingId, state.photoData);
+        } else if (state.photos[state.editingId]) {
+          delete state.photos[state.editingId];
+          idbDel(state.editingId);
+        }
+      } else {
+        var newId = uid();
+        state.items.push({
+          id: newId, name: name,
+          location: document.getElementById("fLoc").value.trim(),
+          note:     document.getElementById("fNote").value.trim(),
+          category: cat, pinned: document.getElementById("fPin").checked,
+          createdAt: now, updatedAt: now
+        });
+        if (state.photoData) {
+          state.photos[newId] = state.photoData;
+          idbPut(newId, state.photoData);
+        }
+      }
+      saveItems(); renderChips(); render(); closeSheet();
+      showToast("✅ 已保存");
+    });
+
+    // Delete
+    document.getElementById("btnDelete").addEventListener("click", function () {
+      if (!state.editingId) return;
+      if (!confirm("确定删除这条记录吗？")) return;
+      var delId = state.editingId;
+      state.items = state.items.filter(function (x) { return x.id !== delId; });
+      if (state.photos[delId]) { delete state.photos[delId]; idbDel(delId); }
+      saveItems(); render(); closeSheet();
+      showToast("已删除");
+    });
+
+    // Theme toggle (manual override clears system-follow)
+    document.getElementById("btnTheme").addEventListener("click", function () {
+      var cur  = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+      var next = cur === "dark" ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem(THEME_KEY, next);
+    });
+
+    // Export — bundles photos too
+    document.getElementById("btnExport").addEventListener("click", function () {
+      if (!state.items.length) { showToast("还没有记录可以导出"); return; }
+      var payload = { version: 2, items: state.items, cats: state.cats, photos: state.photos };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "在哪儿备份_" + new Date().toISOString().slice(0, 10) + ".json";
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      showToast("📥 备份文件已下载");
+    });
+
+    // Import — merge (default) or overwrite
+    document.getElementById("btnImport").addEventListener("click", function () { document.getElementById("importInput").click(); });
+    document.getElementById("importInput").addEventListener("change", function (e) {
+      var f = e.target.files && e.target.files[0]; if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var data = JSON.parse(reader.result);
+          if (!data.items || !Array.isArray(data.items)) throw new Error("格式不对");
+
+          // Collect photos: new format has data.photos; legacy has photo on each item
+          var inPhotos = Object.assign({}, data.photos || {});
+          data.items.forEach(function (it) { if (it.photo) inPhotos[it.id] = it.photo; });
+          var inItems  = data.items.map(function (it) { var o = Object.assign({}, it); delete o.photo; return o; });
+          var inCats   = (data.cats && Array.isArray(data.cats)) ? data.cats : [];
+
+          // Ask: merge (OK) or overwrite (Cancel → second confirm)
+          if (confirm("导入方式\n\n【确定】合并导入（保留现有，冲突取最新版本）\n【取消】进入覆盖模式选择")) {
+            // ---- MERGE ----
+            var existMap = {};
+            state.items.forEach(function (it) { existMap[it.id] = it; });
+            var added = 0, updated = 0;
+            inItems.forEach(function (it) {
+              if (!existMap[it.id]) { state.items.push(it); added++; }
+              else if ((it.updatedAt || 0) > (existMap[it.id].updatedAt || 0)) {
+                Object.assign(existMap[it.id], it); updated++;
+              }
+            });
+            inCats.forEach(function (c) { if (state.cats.indexOf(c) === -1) state.cats.push(c); });
+            var photoPuts = Object.keys(inPhotos).filter(function (id) { return !state.photos[id]; }).map(function (id) {
+              state.photos[id] = inPhotos[id]; return idbPut(id, inPhotos[id]);
+            });
+            Promise.all(photoPuts).then(function () {
+              saveItems(); renderChips(); render();
+              showToast("✅ 合并完成：新增 " + added + "，更新 " + updated + " 条");
+            });
+          } else {
+            // ---- OVERWRITE ----
+            if (!confirm("⚠️ 覆盖模式：将清空当前全部 " + state.items.length + " 条记录，再导入备份，确定吗？")) {
+              e.target.value = ""; return;
+            }
+            state.items  = inItems;
+            state.cats   = inCats.length ? inCats : DEFAULT_CATS.slice();
+            state.photos = {};
+            idbClearAll().then(function () {
+              var puts = Object.keys(inPhotos).map(function (id) {
+                state.photos[id] = inPhotos[id]; return idbPut(id, inPhotos[id]);
+              });
+              return Promise.all(puts);
+            }).then(function () {
+              saveItems(); renderChips(); render();
+              showToast("✅ 覆盖导入成功，共 " + state.items.length + " 条");
+            });
+          }
+        } catch (err) { showToast("导入失败：文件格式不正确"); }
+        e.target.value = "";
+      };
+      reader.readAsText(f);
+    });
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  initTheme();
+  load();
+  // load raw items (may contain legacy photos) for migration
+  var rawForMigration = [];
+  try { rawForMigration = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch (e) {}
+  migratePhotos(rawForMigration).then(function () {
+    bind();
+    renderChips();
+    render();
+  });
+
+  // ── PWA: 安装引导 + 离线缓存 ─────────────────────────────────────────────
+  (function initPWA() {
+    var bar = document.getElementById('installBar');
+    var addBtn = document.getElementById('installAdd');
+    var closeBtn = document.getElementById('installClose');
+    var hint = document.getElementById('installHint');
+    var deferred = null;
+    var DISMISS_KEY = 'zaunar_install_dismissed';
+
+    function isStandalone() {
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+             window.navigator.standalone === true;
+    }
+    function hideBar() { if (bar) bar.classList.add('hide'); }
+    function showBar(text) {
+      if (!bar || isStandalone()) return;
+      if (localStorage.getItem(DISMISS_KEY) === '1') return;
+      if (text) hint.textContent = text;
+      bar.classList.remove('hide');
+    }
+
+    if (isStandalone()) {
+      hideBar();
+    } else {
+      // Android / Chrome / 桌面：等待浏览器原生可安装事件
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferred = e;
+        showBar('放桌面，下次像 App 一样点开');
+      });
+      // iOS Safari：无原生事件，给手动提示
+      var ua = navigator.userAgent;
+      if (/iPhone|iPad|iPod/.test(ua) && !window.navigator.standalone) {
+        showBar('点底部「分享」→「添加到主屏幕」');
+      }
+    }
+
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        if (deferred) {
+          deferred.prompt();
+          deferred.userChoice.then(function () { deferred = null; hideBar(); });
+        } else {
+          // 无原生事件（如 iOS）：引导用分享菜单手动添加
+          showToast('📱 请点浏览器底部「分享」→「添加到主屏幕」');
+          localStorage.setItem(DISMISS_KEY, '1');
+          hideBar();
+        }
+      });
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        localStorage.setItem(DISMISS_KEY, '1');
+        hideBar();
+      });
+    }
+
+    // 注册离线缓存（断网也能开）
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      });
+    }
+  })();
+})();
+</script>
+</body>
+</html>
