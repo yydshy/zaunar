@@ -323,6 +323,23 @@
   @keyframes slideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* ── Gist 云同步 ── */
+  .icon-btn { position: relative; }
+  .sync-dot {
+    position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--text-soft); box-shadow: 0 0 0 2px var(--surface); transition: background 0.3s;
+  }
+  .sync-dot.synced  { background: #5bb98c; }
+  .sync-dot.syncing { background: #e0a64b; animation: pulse 1s infinite; }
+  .sync-dot.error   { background: #d96a6a; }
+  .hint-text { font-size: 14.5px; color: var(--text-soft); line-height: 1.6; margin: 0 0 18px; }
+  .hint-text strong { color: var(--text); }
+  .sync-status { font-size: 14px; color: var(--text-soft); min-height: 20px; margin: 2px 0 14px; }
+  .sync-status.ok  { color: #5bb98c; }
+  .sync-status.err { color: #d96a6a; }
+  .btn-row { display: flex; gap: 10px; margin-top: 6px; }
+  .btn-row .btn { flex: 1; }
 </style>
 </head>
 <body>
@@ -358,6 +375,10 @@
     </button>
     <button class="icon-btn" id="btnTheme" title="切换日间/夜间" aria-label="切换主题">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+    <button class="icon-btn" id="btnSync" title="云同步（Gist）" aria-label="云同步">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-6.7-3"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 6.7 3"/><path d="M21 3v6h-6"/><path d="M3 21v-6h6"/></svg>
+      <span class="sync-dot" id="syncDot"></span>
     </button>
   </header>
 
@@ -442,6 +463,31 @@
     <h2>管理分类</h2>
     <ul class="cat-list" id="catList"></ul>
     <button class="btn btn-ghost" id="btnCatsClose" style="width:100%">关闭</button>
+  </div>
+</div>
+
+<!-- Gist 云同步设置 -->
+<div class="overlay" id="syncOverlay">
+  <div class="sheet" role="dialog" aria-modal="true">
+    <h2>☁️ 云同步设置</h2>
+    <p class="hint-text">用 GitHub Gist 在家人之间共享数据。你和家人填<strong>同一个 Token 和 Gist 编号</strong>，谁录了都能看到。照片不联网，只留在各自手机上。</p>
+    <div class="field">
+      <label for="gistToken">GitHub Token（只需 gist 权限）</label>
+      <input type="text" id="gistToken" placeholder="ghp_... 或 github_pat_..." autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="field">
+      <label for="gistId">Gist 编号（留空可一键新建）</label>
+      <input type="text" id="gistId" placeholder="如：a1b2c3d4e5f6" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="sync-status" id="syncStatus"></div>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" id="btnSyncClose">关闭</button>
+      <button type="button" class="btn btn-primary" id="btnSyncSave">保存并同步</button>
+    </div>
+    <div class="btn-row">
+      <button type="button" class="btn btn-ghost" id="btnSyncNew">新建一个 Gist</button>
+      <button type="button" class="btn btn-ghost danger-text" id="btnSyncDisconnect">断开同步</button>
+    </div>
   </div>
 </div>
 
@@ -994,7 +1040,7 @@
           idbPut(newId, state.photoData);
         }
       }
-      saveItems(); renderChips(); render(); closeSheet();
+      saveItems(); renderChips(); render(); scheduleSync(); closeSheet();
       showToast("✅ 已保存");
     });
 
@@ -1005,7 +1051,7 @@
       var delId = state.editingId;
       state.items = state.items.filter(function (x) { return x.id !== delId; });
       if (state.photos[delId]) { delete state.photos[delId]; idbDel(delId); }
-      saveItems(); render(); closeSheet();
+      saveItems(); render(); scheduleSync(); closeSheet();
       showToast("已删除");
     });
 
@@ -1063,7 +1109,7 @@
               state.photos[id] = inPhotos[id]; return idbPut(id, inPhotos[id]);
             });
             Promise.all(photoPuts).then(function () {
-              saveItems(); renderChips(); render();
+              saveItems(); renderChips(); render(); scheduleSync();
               showToast("✅ 合并完成：新增 " + added + "，更新 " + updated + " 条");
             });
           } else {
@@ -1080,7 +1126,7 @@
               });
               return Promise.all(puts);
             }).then(function () {
-              saveItems(); renderChips(); render();
+              saveItems(); renderChips(); render(); scheduleSync();
               showToast("✅ 覆盖导入成功，共 " + state.items.length + " 条");
             });
           }
@@ -1089,6 +1135,151 @@
       };
       reader.readAsText(f);
     });
+  }
+
+  // ── Gist 云同步（文字字段同步，照片各留本地，merge-by-id 防覆盖） ──────────────
+  var GIST_TOKEN_KEY = "zaunar_gist_token";
+  var GIST_ID_KEY    = "zaunar_gist_id";
+  var GIST_FILE      = "zaunar-data.json";
+  var _syncTimer = null;
+  var _syncing   = false;
+
+  function gistHeaders(token) {
+    return { "Authorization": "token " + token, "Content-Type": "application/json", "Accept": "application/vnd.github+json" };
+  }
+  function gistFilesBody() { var o = {}; o[GIST_FILE] = { content: JSON.stringify({ v: 1, items: state.items, cats: state.cats }) }; return o; }
+  function setSyncDot(cls) { var d = document.getElementById("syncDot"); if (d) d.className = "sync-dot" + (cls ? " " + cls : ""); }
+  function setSyncStatus(msg, kind) {
+    var el = document.getElementById("syncStatus"); if (!el) return;
+    el.textContent = msg || ""; el.className = "sync-status" + (kind ? " " + kind : "");
+  }
+
+  function pullGist(token, gistId) {
+    return fetch("https://api.github.com/gists/" + gistId, { headers: gistHeaders(token) })
+      .then(function (r) { if (!r.ok) throw new Error("pull " + r.status); return r.json(); })
+      .then(function (data) {
+        var f = (data.files || {})[GIST_FILE];
+        if (!f || !f.content) return null;
+        try { return JSON.parse(f.content); } catch (e) { return null; }
+      });
+  }
+
+  // 按 id 合并：同 id 取 updatedAt 较新者；不同 id 全部保留；分类取并集
+  function mergeRemote(remote) {
+    if (!remote) return false;
+    var changed = false, localMap = {};
+    state.items.forEach(function (it) { localMap[it.id] = it; });
+    (remote.items || []).forEach(function (r) {
+      var l = localMap[r.id];
+      if (!l) { state.items.push(r); changed = true; }
+      else {
+        var lT = l.updatedAt || l.createdAt || 0, rT = r.updatedAt || r.createdAt || 0;
+        if (rT > lT) { var i = state.items.indexOf(l); if (i >= 0) { state.items[i] = r; changed = true; } }
+      }
+    });
+    (remote.cats || []).forEach(function (c) { if (state.cats.indexOf(c) === -1) { state.cats.push(c); changed = true; } });
+    return changed;
+  }
+
+  function pushGist(token, gistId) {
+    return fetch("https://api.github.com/gists/" + gistId, {
+      method: "PATCH", headers: gistHeaders(token), body: JSON.stringify({ files: gistFilesBody() })
+    }).then(function (r) { if (!r.ok) throw new Error("push " + r.status); return r.json(); });
+  }
+
+  function createGist(token) {
+    return fetch("https://api.github.com/gists", {
+      method: "POST", headers: gistHeaders(token),
+      body: JSON.stringify({ public: false, files: gistFilesBody() })
+    }).then(function (r) { if (!r.ok) throw new Error("create " + r.status); return r.json(); })
+      .then(function (d) { return d.id; });
+  }
+
+  // 同步流程：先拉（取到家人数据并合并），再推（上传合并结果）。
+  // 若拉取失败（离线/无权限）则不打推，避免覆盖远端。
+  function doSync(opts) {
+    opts = opts || {};
+    var token = localStorage.getItem(GIST_TOKEN_KEY), gistId = localStorage.getItem(GIST_ID_KEY);
+    if (!token || !gistId) { setSyncDot("error"); return Promise.resolve(); }
+    if (_syncing) return Promise.resolve();
+    _syncing = true; setSyncDot("syncing");
+    if (opts.silent !== true) setSyncStatus("同步中…");
+    return pullGist(token, gistId)
+      .then(function (remote) {
+        if (mergeRemote(remote)) { saveItems(); renderChips(); render(); }
+        return pushGist(token, gistId);
+      })
+      .then(function () {
+        _syncing = false; setSyncDot("synced");
+        var t = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+        setSyncStatus("✅ 已同步 " + t, "ok");
+        if (opts.toast) showToast("☁️ 已同步到云端");
+      })
+      .catch(function (err) {
+        _syncing = false; setSyncDot("error");
+        var m = (err && err.message || "");
+        var msg = m.indexOf("401") >= 0 ? "Token 无效或无权限" :
+                  m.indexOf("404") >= 0 ? "Gist 不存在" : "同步失败，请检查网络";
+        setSyncStatus("⚠️ " + msg, "err");
+        if (opts.toast) showToast("☁️ " + msg);
+      });
+  }
+
+  function scheduleSync() { if (_syncTimer) clearTimeout(_syncTimer); _syncTimer = setTimeout(function () { doSync({}); }, 1500); }
+
+  function initSync() {
+    var overlay = document.getElementById("syncOverlay");
+    var tokenInput = document.getElementById("gistToken");
+    var idInput = document.getElementById("gistId");
+    function openSync() {
+      tokenInput.value = localStorage.getItem(GIST_TOKEN_KEY) || "";
+      idInput.value = localStorage.getItem(GIST_ID_KEY) || "";
+      setSyncStatus("");
+      overlay.classList.add("open");
+    }
+    function closeSync() { overlay.classList.remove("open"); }
+
+    document.getElementById("btnSync").addEventListener("click", function () {
+      if (localStorage.getItem(GIST_TOKEN_KEY) && localStorage.getItem(GIST_ID_KEY)) doSync({ toast: true });
+      else openSync();
+    });
+    document.getElementById("btnSyncClose").addEventListener("click", closeSync);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) closeSync(); });
+
+    document.getElementById("btnSyncSave").addEventListener("click", function () {
+      var tk = tokenInput.value.trim(), gid = idInput.value.trim();
+      if (!tk) { setSyncStatus("请填写 GitHub Token", "err"); return; }
+      localStorage.setItem(GIST_TOKEN_KEY, tk);
+      if (gid) localStorage.setItem(GIST_ID_KEY, gid);
+      setSyncStatus("正在同步…");
+      var p = gid ? Promise.resolve(gid) : createGist(tk).then(function (id) { localStorage.setItem(GIST_ID_KEY, id); idInput.value = id; return id; });
+      p.then(function () { return doSync({ toast: true }); }).then(closeSync)
+       .catch(function (err) {
+         var m = (err && err.message || "");
+         setSyncStatus("⚠️ " + (m.indexOf("401") >= 0 ? "Token 无效或无权限" : "创建/同步失败，请检查 Token"), "err");
+       });
+    });
+
+    document.getElementById("btnSyncNew").addEventListener("click", function () {
+      var tk = tokenInput.value.trim();
+      if (!tk) { setSyncStatus("先填写 Token 再新建", "err"); return; }
+      setSyncStatus("正在新建 Gist…");
+      createGist(tk).then(function (id) {
+        localStorage.setItem(GIST_TOKEN_KEY, tk); localStorage.setItem(GIST_ID_KEY, id);
+        idInput.value = id; setSyncStatus("✅ 已新建并保存 Gist", "ok");
+      }).catch(function () { setSyncStatus("⚠️ 新建失败，请检查 Token", "err"); });
+    });
+
+    document.getElementById("btnSyncDisconnect").addEventListener("click", function () {
+      localStorage.removeItem(GIST_TOKEN_KEY); localStorage.removeItem(GIST_ID_KEY);
+      setSyncDot("error"); setSyncStatus("已断开云同步", "");
+      closeSync(); showToast("已断开云同步");
+    });
+
+    if (localStorage.getItem(GIST_TOKEN_KEY) && localStorage.getItem(GIST_ID_KEY)) doSync({});
+    else setSyncDot("error");
+
+    window.addEventListener("online", function () { doSync({}); });
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -1101,6 +1292,7 @@
     bind();
     renderChips();
     render();
+    initSync();
   });
 
   // ── PWA: 安装引导 + 离线缓存 ─────────────────────────────────────────────
