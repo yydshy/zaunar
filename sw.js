@@ -1,4 +1,4 @@
-const CACHE = 'zaunar-v1';
+const CACHE = 'zaunar-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -28,6 +28,26 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
+  var url = new URL(e.request.url);
+  var isNav = e.request.mode === 'navigate' ||
+              url.pathname.endsWith('index.html') ||
+              url.pathname === '/' || url.pathname.endsWith('/');
+
+  // HTML 导航：网络优先，保证更新即时生效；离线回退到缓存
+  if (isNav) {
+    e.respondWith(
+      fetch(e.request).then(function (resp) {
+        var copy = resp.clone();
+        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+        return resp;
+      }).catch(function () {
+        return caches.match(e.request).then(function (c) { return c || caches.match('./index.html'); });
+      })
+    );
+    return;
+  }
+
+  // 静态资源：缓存优先
   e.respondWith(
     caches.match(e.request).then(function (cached) {
       if (cached) return cached;
