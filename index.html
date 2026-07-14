@@ -361,6 +361,39 @@
   .sync-status { font-size: 14px; color: var(--text-soft); min-height: 20px; margin: 2px 0 14px; }
   .sync-status.ok  { color: #5bb98c; }
   .sync-status.err { color: #d96a6a; }
+  .gist-id-box {
+    background: var(--surface-raised, var(--surface));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: -6px 0 16px;
+  }
+  .gist-id-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .gist-id-tip { font-size: 13px; color: var(--text-soft); line-height: 1.4; }
+  .gist-id-tip strong { color: var(--accent); }
+  .gist-id-text {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: var(--text);
+    word-break: break-all;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 8px 10px;
+    user-select: all;
+  }
+  .btn-mini {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    font-size: 13px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-mini:active { transform: scale(0.96); }
   .btn-row { display: flex; gap: 10px; margin-top: 6px; }
   .btn-row .btn { flex: 1; }
 </style>
@@ -513,8 +546,15 @@
       <input type="text" id="gistToken" placeholder="ghp_... 或 github_pat_..." autocomplete="off" spellcheck="false" />
     </div>
     <div class="field">
-      <label for="gistId">Gist 编号（留空可一键新建）</label>
+      <label for="gistId">Gist 编号（<strong>家人要填同一个</strong>）</label>
       <input type="text" id="gistId" placeholder="如：a1b2c3d4e5f6" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="gist-id-box" id="gistIdBox" hidden>
+      <div class="gist-id-row">
+        <span class="gist-id-tip">当前 Gist 编号（<strong>发给家人填同一个</strong>）：</span>
+        <button type="button" class="btn-mini" id="btnCopyGistId">复制</button>
+      </div>
+      <code class="gist-id-text" id="gistIdText"></code>
     </div>
     <div class="sync-status" id="syncStatus"></div>
     <div class="actions">
@@ -1307,9 +1347,29 @@
     var overlay = document.getElementById("syncOverlay");
     var tokenInput = document.getElementById("gistToken");
     var idInput = document.getElementById("gistId");
+    function refreshGistIdBox() {
+      var box = document.getElementById("gistIdBox");
+      var txt = document.getElementById("gistIdText");
+      var id = localStorage.getItem(GIST_ID_KEY);
+      if (id) { txt.textContent = id; box.hidden = false; }
+      else { box.hidden = true; }
+    }
+    function fallbackCopy(t) {
+      var ta = document.createElement("textarea");
+      ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    function copyText(t) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).catch(function () { fallbackCopy(t); });
+      } else { fallbackCopy(t); }
+    }
     function openSync() {
       tokenInput.value = localStorage.getItem(GIST_TOKEN_KEY) || "";
       idInput.value = localStorage.getItem(GIST_ID_KEY) || "";
+      refreshGistIdBox();
       setSyncStatus("");
       overlay.classList.add("open");
     }
@@ -1321,6 +1381,12 @@
     });
     document.getElementById("btnSyncClose").addEventListener("click", closeSync);
     overlay.addEventListener("click", function (e) { if (e.target === overlay) closeSync(); });
+    document.getElementById("btnCopyGistId").addEventListener("click", function () {
+      var id = localStorage.getItem(GIST_ID_KEY) || "";
+      if (!id) return;
+      copyText(id);
+      showToast("已复制 Gist 编号");
+    });
 
     document.getElementById("btnSyncSave").addEventListener("click", function () {
       var tk = tokenInput.value.trim(), gid = idInput.value.trim();
@@ -1329,7 +1395,7 @@
       if (gid) localStorage.setItem(GIST_ID_KEY, gid);
       setSyncStatus("正在同步…");
       var p = gid ? Promise.resolve(gid) : createGist(tk).then(function (id) { localStorage.setItem(GIST_ID_KEY, id); idInput.value = id; return id; });
-      p.then(function () { return doSync({ toast: true }); }).then(closeSync)
+      p.then(function () { return doSync({ toast: true }); }).then(function () { refreshGistIdBox(); closeSync(); })
        .catch(function (err) {
          var m = (err && err.message || "");
          setSyncStatus("⚠️ " + (m.indexOf("401") >= 0 ? "Token 无效或无权限" : "创建/同步失败，请检查 Token"), "err");
@@ -1342,12 +1408,13 @@
       setSyncStatus("正在新建 Gist…");
       createGist(tk).then(function (id) {
         localStorage.setItem(GIST_TOKEN_KEY, tk); localStorage.setItem(GIST_ID_KEY, id);
-        idInput.value = id; setSyncStatus("✅ 已新建并保存 Gist", "ok");
+        idInput.value = id; refreshGistIdBox(); setSyncStatus("✅ 已新建并保存 Gist", "ok");
       }).catch(function () { setSyncStatus("⚠️ 新建失败，请检查 Token", "err"); });
     });
 
     document.getElementById("btnSyncDisconnect").addEventListener("click", function () {
       localStorage.removeItem(GIST_TOKEN_KEY); localStorage.removeItem(GIST_ID_KEY);
+      refreshGistIdBox();
       setSyncDot("error"); setSyncStatus("已断开云同步", "");
       closeSync(); showToast("已断开云同步");
     });
