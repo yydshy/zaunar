@@ -540,21 +540,14 @@
 <div class="overlay" id="syncOverlay">
   <div class="sheet" role="dialog" aria-modal="true">
     <h2>☁️ 云同步设置</h2>
-    <p class="hint-text">用 GitHub Gist 在家人之间共享数据。你和家人填<strong>同一个 Token 和 Gist 编号</strong>，谁录了都能看到。照片不联网，只留在各自手机上。</p>
+    <p class="hint-text">用 GitHub Gist 在家人之间共享数据。你和家人用<strong>同一个 Token（同一 GitHub 账号）</strong>即可自动同步，谁录了都能看到。照片不联网，只留在各自手机上。</p>
     <div class="field">
       <label for="gistToken">GitHub Token（只需 gist 权限）</label>
       <input type="text" id="gistToken" placeholder="ghp_... 或 github_pat_..." autocomplete="off" spellcheck="false" />
     </div>
     <div class="field">
-      <label for="gistId">Gist 编号（<strong>家人要填同一个</strong>）</label>
-      <input type="text" id="gistId" placeholder="如：a1b2c3d4e5f6" autocomplete="off" spellcheck="false" />
-    </div>
-    <div class="gist-id-box" id="gistIdBox" hidden>
-      <div class="gist-id-row">
-        <span class="gist-id-tip">当前 Gist 编号（<strong>发给家人填同一个</strong>）：</span>
-        <button type="button" class="btn-mini" id="btnCopyGistId">复制</button>
-      </div>
-      <code class="gist-id-text" id="gistIdText"></code>
+      <label for="gistToken">GitHub Token（只需 gist 权限，家人用同一个）</label>
+      <input type="text" id="gistToken" placeholder="ghp_... 或 github_pat_..." autocomplete="off" spellcheck="false" />
     </div>
     <div class="sync-status" id="syncStatus"></div>
     <div class="actions">
@@ -562,7 +555,6 @@
       <button type="button" class="btn btn-primary" id="btnSyncSave">保存并同步</button>
     </div>
     <div class="btn-row">
-      <button type="button" class="btn btn-ghost" id="btnSyncNew">新建一个 Gist</button>
       <button type="button" class="btn btn-ghost danger-text" id="btnSyncDisconnect">断开同步</button>
     </div>
   </div>
@@ -1257,6 +1249,7 @@
   var GIST_TOKEN_KEY = "zaunar_gist_token";
   var GIST_ID_KEY    = "zaunar_gist_id";
   var GIST_FILE      = "zaunar-data.json";
+  var GIST_DESC      = "在哪儿数据备份";
   var _syncTimer = null;
   var _syncing   = false;
 
@@ -1306,9 +1299,43 @@
   function createGist(token) {
     return fetch("https://api.github.com/gists", {
       method: "POST", headers: gistHeaders(token),
-      body: JSON.stringify({ public: false, files: gistFilesBody() })
+      body: JSON.stringify({ public: false, description: GIST_DESC, files: gistFilesBody() })
     }).then(function (r) { if (!r.ok) throw new Error("create " + r.status); return r.json(); })
       .then(function (d) { return d.id; });
+  }
+
+  // 仅用 Token 自动定位本账号下的「在哪儿」备份 Gist：
+  // 枚举该 Token 的全部 Gist，按固定文件名 zaunar-data.json 或描述匹配，挑数据最全的；
+  // 找不到则调用方会自动 createGist。多设备/家人用同一 Token 即自动命中同一 Gist。
+  function gistItemCount(g) {
+    try {
+      var f = g.files && g.files[GIST_FILE];
+      if (!f || !f.content) return -1;
+      var o = JSON.parse(f.content);
+      return (o.items || []).length;
+    } catch (e) { return -1; }
+  }
+  function pickBestGist(gists) {
+    var backups = (gists || []).filter(function (g) {
+      return (g.files && g.files[GIST_FILE]) ||
+             (g.description && g.description.indexOf(GIST_DESC) !== -1);
+    });
+    if (!backups.length) return null;
+    backups.sort(function (a, b) {
+      var ca = gistItemCount(a), cb = gistItemCount(b);
+      if (cb !== ca) return cb - ca;
+      return new Date(b.updated_at) - new Date(a.updated_at);
+    });
+    return backups[0];
+  }
+  function locateGist(token) {
+    return fetch("https://api.github.com/gists", { headers: gistHeaders(token) })
+      .then(function (r) { if (!r.ok) throw new Error("list " + r.status); return r.json(); })
+      .then(function (gists) {
+        var best = pickBestGist(gists);
+        if (best) { localStorage.setItem(GIST_ID_KEY, best.id); return best.id; }
+        return null;
+      });
   }
 
   // 同步流程：先拉（取到家人数据并合并），再推（上传合并结果）。
@@ -1335,7 +1362,7 @@
         _syncing = false; setSyncDot("error");
         var m = (err && err.message || "");
         var msg = m.indexOf("401") >= 0 ? "Token 无效或无权访问" :
-                  m.indexOf("404") >= 0 ? "Gist 不存在或无权访问（确认：①编号完整无误 ②此 Token 与创建该 Gist 的是同一 GitHub 账号）" : "同步失败，请检查网络";
+                  m.indexOf("404") >= 0 ? "Gist 不可访问，请重新点「保存并同步」连接" : "同步失败，请检查网络";
         setSyncStatus("⚠️ " + msg, "err");
         if (opts.toast) showToast("☁️ " + msg);
       });
@@ -1346,30 +1373,8 @@
   function initSync() {
     var overlay = document.getElementById("syncOverlay");
     var tokenInput = document.getElementById("gistToken");
-    var idInput = document.getElementById("gistId");
-    function refreshGistIdBox() {
-      var box = document.getElementById("gistIdBox");
-      var txt = document.getElementById("gistIdText");
-      var id = localStorage.getItem(GIST_ID_KEY);
-      if (id) { txt.textContent = id; box.hidden = false; }
-      else { box.hidden = true; }
-    }
-    function fallbackCopy(t) {
-      var ta = document.createElement("textarea");
-      ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.appendChild(ta); ta.select();
-      try { document.execCommand("copy"); } catch (e) {}
-      document.body.removeChild(ta);
-    }
-    function copyText(t) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(t).catch(function () { fallbackCopy(t); });
-      } else { fallbackCopy(t); }
-    }
     function openSync() {
       tokenInput.value = localStorage.getItem(GIST_TOKEN_KEY) || "";
-      idInput.value = localStorage.getItem(GIST_ID_KEY) || "";
-      refreshGistIdBox();
       if (localStorage.getItem(GIST_TOKEN_KEY) && localStorage.getItem(GIST_ID_KEY)) {
         setSyncStatus("正在同步…");
         doSync({ toast: true });
@@ -1383,40 +1388,27 @@
     document.getElementById("btnSync").addEventListener("click", openSync);
     document.getElementById("btnSyncClose").addEventListener("click", closeSync);
     overlay.addEventListener("click", function (e) { if (e.target === overlay) closeSync(); });
-    document.getElementById("btnCopyGistId").addEventListener("click", function () {
-      var id = localStorage.getItem(GIST_ID_KEY) || "";
-      if (!id) return;
-      copyText(id);
-      showToast("已复制 Gist 编号");
-    });
-
     document.getElementById("btnSyncSave").addEventListener("click", function () {
-      var tk = tokenInput.value.trim(), gid = idInput.value.trim();
+      var tk = tokenInput.value.trim();
       if (!tk) { setSyncStatus("请填写 GitHub Token", "err"); return; }
       localStorage.setItem(GIST_TOKEN_KEY, tk);
-      if (gid) localStorage.setItem(GIST_ID_KEY, gid);
-      setSyncStatus("正在同步…");
-      var p = gid ? Promise.resolve(gid) : createGist(tk).then(function (id) { localStorage.setItem(GIST_ID_KEY, id); idInput.value = id; return id; });
-      p.then(function () { return doSync({ toast: true }); }).then(function () { refreshGistIdBox(); closeSync(); })
-       .catch(function (err) {
-         var m = (err && err.message || "");
-         setSyncStatus("⚠️ " + (m.indexOf("401") >= 0 ? "Token 无效或无权限" : "创建/同步失败，请检查 Token"), "err");
-       });
-    });
-
-    document.getElementById("btnSyncNew").addEventListener("click", function () {
-      var tk = tokenInput.value.trim();
-      if (!tk) { setSyncStatus("先填写 Token 再新建", "err"); return; }
-      setSyncStatus("正在新建 Gist…");
-      createGist(tk).then(function (id) {
-        localStorage.setItem(GIST_TOKEN_KEY, tk); localStorage.setItem(GIST_ID_KEY, id);
-        idInput.value = id; refreshGistIdBox(); setSyncStatus("✅ 已新建并保存 Gist", "ok");
-      }).catch(function () { setSyncStatus("⚠️ 新建失败，请检查 Token", "err"); });
+      setSyncStatus("正在连接云端…");
+      // 仅用 Token：自动定位本账号下的「在哪儿」备份 Gist；找不到则自动新建
+      locateGist(tk)
+        .then(function (id) {
+          if (id) return id;
+          return createGist(tk).then(function (nid) { localStorage.setItem(GIST_ID_KEY, nid); return nid; });
+        })
+        .then(function () { return doSync({ toast: true }); })
+        .then(function () { closeSync(); })
+        .catch(function (err) {
+          var m = (err && err.message || "");
+          setSyncStatus("⚠️ " + (m.indexOf("401") >= 0 ? "Token 无效或无权限" : "连接失败，请检查 Token"), "err");
+        });
     });
 
     document.getElementById("btnSyncDisconnect").addEventListener("click", function () {
       localStorage.removeItem(GIST_TOKEN_KEY); localStorage.removeItem(GIST_ID_KEY);
-      refreshGistIdBox();
       setSyncDot("error"); setSyncStatus("已断开云同步", "");
       closeSync(); showToast("已断开云同步");
     });
