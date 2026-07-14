@@ -1334,8 +1334,8 @@
       .catch(function (err) {
         _syncing = false; setSyncDot("error");
         var m = (err && err.message || "");
-        var msg = m.indexOf("401") >= 0 ? "Token 无效或无权限" :
-                  m.indexOf("404") >= 0 ? "Gist 不存在" : "同步失败，请检查网络";
+        var msg = m.indexOf("401") >= 0 ? "Token 无效或无权访问" :
+                  m.indexOf("404") >= 0 ? "Gist 不存在或无权访问（确认：①编号完整无误 ②此 Token 与创建该 Gist 的是同一 GitHub 账号）" : "同步失败，请检查网络";
         setSyncStatus("⚠️ " + msg, "err");
         if (opts.toast) showToast("☁️ " + msg);
       });
