@@ -1370,15 +1370,17 @@
       tokenInput.value = localStorage.getItem(GIST_TOKEN_KEY) || "";
       idInput.value = localStorage.getItem(GIST_ID_KEY) || "";
       refreshGistIdBox();
-      setSyncStatus("");
+      if (localStorage.getItem(GIST_TOKEN_KEY) && localStorage.getItem(GIST_ID_KEY)) {
+        setSyncStatus("正在同步…");
+        doSync({ toast: true });
+      } else {
+        setSyncStatus("");
+      }
       overlay.classList.add("open");
     }
     function closeSync() { overlay.classList.remove("open"); }
 
-    document.getElementById("btnSync").addEventListener("click", function () {
-      if (localStorage.getItem(GIST_TOKEN_KEY) && localStorage.getItem(GIST_ID_KEY)) doSync({ toast: true });
-      else openSync();
-    });
+    document.getElementById("btnSync").addEventListener("click", openSync);
     document.getElementById("btnSyncClose").addEventListener("click", closeSync);
     overlay.addEventListener("click", function (e) { if (e.target === overlay) closeSync(); });
     document.getElementById("btnCopyGistId").addEventListener("click", function () {

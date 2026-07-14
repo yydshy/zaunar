@@ -1,4 +1,4 @@
-const CACHE = 'zaunar-v4';
+const CACHE = 'zaunar-v5';
 const ASSETS = [
   './',
   './index.html',
